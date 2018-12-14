@@ -29,10 +29,16 @@ int sockfd = -1;
 char* HOST;
 struct sockaddr_in serverAddressInfo;
 struct hostent * serverIPAddress;
+//01
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
 	int res;
-
+	printf("GETATTR %s\n", path);
+	char tosend[255];
+	memset(&tosend, 0, sizeof(tosend));
+	sprintf(tosend, "1");
+	sprintf(tosend, "01||%s", path);
+	send(sockfd, (char*) tosend, strlen(tosend), 0);
 	res = lstat(path, stbuf);
 	if (res == -1)
 		return -errno;
@@ -63,7 +69,7 @@ static int xmp_readlink(const char *path, char *buf, size_t size)
 	return 0;
 }
 
-
+//02
 static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
@@ -114,14 +120,18 @@ static int xmp_mkdir(const char *path, mode_t mode)
 {
 	int res;
 	char modeholder[10];
+	char tosend[255];
 	sprintf(modeholder, "%d",(int) mode);
 	printf("DIR:%s %d\n", path, mode);
 	//send to server code;
+	sprintf(tosend, "06||%s||%s", path, modeholder);
+	/*
 	send(sockfd, (char*) "06", sizeof(char) * 2, 0);
 	send(sockfd, (char*) "||", sizeof(char) * 2, 0);
 	send(sockfd, (char*) path, strlen(path), 0);
 	send(sockfd, (char*) "||", sizeof(char) * 2, 0);
-	send(sockfd, (char *) modeholder , sizeof(char) * 10, 0);
+	*/
+	send(sockfd, (char *) tosend , strlen(tosend), 0);
 	res = mkdir(path, mode);
 	if (res == -1)
 		return -errno;
@@ -205,7 +215,7 @@ static int xmp_chown(const char *path, uid_t uid, gid_t gid)
 
 	return 0;
 }
-
+//07
 static int xmp_truncate(const char *path, off_t size)
 {
 	int res;
@@ -230,11 +240,14 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 	return 0;
 }
 #endif
-
+//10
 static int xmp_open(const char *path, struct fuse_file_info *fi)
 {
 	int res;
-
+	char tosend[255];
+	printf("Caught OPEN %s\n", path);
+	sprintf(tosend, "10||%s", path);
+	send(sockfd, (char *)tosend, strlen(tosend), 0);
 	res = open(path, fi->flags);
 	if (res == -1)
 		return -errno;
@@ -242,7 +255,7 @@ static int xmp_open(const char *path, struct fuse_file_info *fi)
 	close(res);
 	return 0;
 }
-
+//11
 static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
@@ -261,13 +274,13 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 	close(fd);
 	return res;
 }
-
+//12
 static int xmp_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
 	int fd;
 	int res;
-
+	printf("Caught WRITE\n");
 	(void) fi;
 	fd = open(path, O_WRONLY);
 	if (fd == -1)
@@ -373,6 +386,22 @@ static int xmp_removexattr(const char *path, const char *name)
 	return 0;
 }
 #endif /* HAVE_SETXATTR */
+//13
+static int xmp_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+{
+	printf("got create %s\n", path);
+	char tosend[255];
+	char tocreate[255];
+	char modeholder[10];
+	sprintf(modeholder, "%d",(int) mode);
+	sprintf(tosend, "13||%s||%s", path, modeholder);
+	send(sockfd, (char *) tosend, strlen(tosend), 0);
+	//sprintf(tocreate, "%s%s", mountpoint[2], path);
+	//int res = creat(tocreate, mode);
+	//if (res == -1)
+	//	printf("Failed %s\n", strerror(errno));
+	return 0;
+}
 
 static struct fuse_operations xmp_oper = {
 	.getattr	= xmp_getattr,
@@ -389,6 +418,7 @@ static struct fuse_operations xmp_oper = {
 	.chmod		= xmp_chmod,
 	.chown		= xmp_chown,
 	.truncate	= xmp_truncate,
+	.create		= xmp_create,
 #ifdef HAVE_UTIMENSAT
 	.utimens	= xmp_utimens,
 #endif

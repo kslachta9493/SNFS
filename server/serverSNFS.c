@@ -398,16 +398,131 @@ static struct fuse_operations xmp_oper = {
 	.removexattr	= xmp_removexattr,
 #endif
 };
-void *mounted () {
-	//puts("Started fuse_main");
-	//fuse_main(3, mountpoint, &xmp_oper, NULL);
+void mygetattr() {
+	printf("getattr received\n");
+	char *token;
+	int read_size;
+	char *path;
+	int messagesize, offset;
+	char path2[255];
+	char *message;
+	mode_t mode;
+	int result;
+	token = strtok(NULL, "||");
+	if (token == NULL)
+		puts("NULLADDR");
+	path = strdup(token);
+	sprintf(path2, "%s%s", mountpoint[2], path);
+	fflush(stdout);
+	xmp_getattr(path2, NULL);
+}
+void myreaddir() {
+}
+void mytruncate() {
+	printf("truncate received\n");
+}
+void myopen() {
+	printf("Open: received\n");
+	char *token;
+	int read_size;
+	char *path;
+	int messagesize, offset;
+	char path2[255];
+	char *message;
+	mode_t mode;
+	int result;
+	token = strtok(NULL, "||");
+	if (token == NULL)
+		puts("NULLADDR");
+	path = strdup(token);
+	sprintf(path2, "%s%s", mountpoint[2], path);
+	printf("%s\n", path2);
+	fflush(stdout);
+	open(path2, O_RDONLY);
+}
+void myread() {
+	
+}
+void mywrite() {
+	printf("write received\n");
+	char *token;
+	int read_size;
+	char *path;
+	int messagesize, offset;
+	char path2[255];
+	char *message;
+	mode_t mode;
+	int result;
+	token = strtok(NULL, "||");
+	if (token == NULL)
+		puts("NULL");
+	path = strdup(token);
+	sprintf(path2, "%s%s", mountpoint[2], path);
+	//printf("%s\n", path2);
+	fflush(stdout);
+	token = strtok(NULL, "||");
+	//printf("%s\n", token);
+	message = strdup(token);
+	token = strtok(NULL, "||");
+	messagesize = atoi(token);
+	token = strtok(NULL, "||");
+	offset = atoi(token);
+
+	xmp_write(path2, message, messagesize, offset, NULL);
+}
+void mycreate() {
+	char *token;
+	printf("create received\n");
+	int read_size;
+	char *path;
+	char path2[255];
+	mode_t mode;
+	int result;
+	token = strtok(NULL, "||");
+	if (token == NULL)
+		puts("NULL");
+	path = strdup(token);
+	sprintf(path2, "%s%s", mountpoint[2], path);
+	//sprintf(path2, "%s", path);
+	fflush(stdout);
+	token = strtok(NULL, "||");
+	mode = (mode_t) atoi(token);
+	
+	creat(path2, 0777);
+}
+void myflush() {
+}
+void myopendir() {
+}
+void myreleasedir() {
+}
+void mymkdir() {
+	char *token;
+	printf("mkdir received\n");
+	int read_size;
+	char *path;
+	char path2[255];
+	mode_t mode;
+	int result;
+	token = strtok(NULL, "||");
+	if (token == NULL)
+		puts("NULL");
+	path = strdup(token);
+	sprintf(path2, "%s%s", mountpoint[2], path);
+	//sprintf(path2, "%s", path);
+	fflush(stdout);
+	token = strtok(NULL, "||");
+	mode = (mode_t) atoi(token);
+	//result = mkdir(path2, 0777);
+	if (result == -1)
+		puts("Mkdir failed");
+	xmp_mkdir(path2, 0777);
 }
 void *connection_handler(void *socket_desc)
 {
 	int sock = *(int*)socket_desc;
-	printf("S , ");
 	//fflush(stdout);
-	char buffer[255];
+	char buffer[10000];
 	char *token;
 	int read_size;
 	char *path;
@@ -415,36 +530,54 @@ void *connection_handler(void *socket_desc)
 	mode_t mode;
 	int command;
 	int result;
-    	while( (read_size = recv(sock , buffer , 255, 0)) > 0 )
+    	while( (read_size = recv(sock , buffer , 10000, 0)) > 0 )
     	{
-		printf(" got %s, ", buffer);
+		printf(" got %s\n ", buffer);
 		fflush(stdout);
 		token = strtok(buffer, "||");
 		command = atoi(token);
+		printf("Com:%d\n", command);
 		switch(command) {
+			case 01:
+				mygetattr();
+				break;
+			case 02:
+				myreaddir();
+				break;
 			case 06:
-
-				token = strtok(NULL, "||");
-				if (token == NULL)
-					puts("NULL");
-				path = strdup(token);
-				sprintf(path2, "%s%s", mountpoint[2], path);
-				//sprintf(path2, "%s", path);
-				printf("%s\n", path2);
-				fflush(stdout);
-				token = strtok(NULL, "||");
-				printf("%s\n", token);
-				mode = (mode_t) atoi(token);
-				//result = mkdir(path2, 0777);
-				if (result == -1)
-					puts("Mkdir failed");
-
-				xmp_mkdir(path2, 0777);
+				mymkdir();
+				break;
+			case 07:
+				mytruncate();
+				break;
+			case 10:
+				myopen();
+				break;
+			case 11:
+				myread();
+				break;
+			case 12:
+				mywrite();
+				break;
+			case 13:
+				mycreate();
+				break;
+			case 14:
+				myflush();
+				break;
+			case 15:
+				myopendir();
+				break;
+			case 16:
+				myreleasedir();
+				break;
+			default:
+				printf("COMMAND: %d\n", command);
 				break;
 		}
 		fflush(stdout);
+		memset(buffer, 0, 10000);
 	}
-	//printf("E , ");
 	fflush(stdout);
 }
 
@@ -494,7 +627,7 @@ int main(int argc, char *argv[]) {
 	while( (clientSock = accept(serverSock, (struct sockaddr *)&client, (socklen_t*)&size)) )
     	{
        		// puts("Connection accepted");
-		printf("%s , ", inet_ntoa(client.sin_addr));
+		//printf("%s , ", inet_ntoa(client.sin_addr));
          	fflush(stdout);
         	if( pthread_create( &thread_id , NULL ,  connection_handler , (void*) &clientSock) < 0)
         	{
