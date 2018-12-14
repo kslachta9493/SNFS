@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -23,9 +24,7 @@ char* mountpoint[3];
 struct sockaddr_in server, client;
 int serverSock, clientSock, size;
 
-void *connection_handler(void *socket_desc)
-{
-}
+
 
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
@@ -108,7 +107,7 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 	return 0;
 }
 
-static int xmp_mkdir(const char *path, mode_t mode)
+int xmp_mkdir(const char *path, mode_t mode)
 {
 	int res;
 	printf("DIR:%s\n", path);
@@ -403,6 +402,51 @@ void *mounted () {
 	//puts("Started fuse_main");
 	//fuse_main(3, mountpoint, &xmp_oper, NULL);
 }
+void *connection_handler(void *socket_desc)
+{
+	int sock = *(int*)socket_desc;
+	printf("S , ");
+	//fflush(stdout);
+	char buffer[255];
+	char *token;
+	int read_size;
+	char *path;
+	char path2[255];
+	mode_t mode;
+	int command;
+	int result;
+    	while( (read_size = recv(sock , buffer , 255, 0)) > 0 )
+    	{
+		printf(" got %s, ", buffer);
+		fflush(stdout);
+		token = strtok(buffer, "||");
+		command = atoi(token);
+		switch(command) {
+			case 06:
+
+				token = strtok(NULL, "||");
+				if (token == NULL)
+					puts("NULL");
+				path = strdup(token);
+				sprintf(path2, "%s%s", mountpoint[2], path);
+				//sprintf(path2, "%s", path);
+				printf("%s\n", path2);
+				fflush(stdout);
+				token = strtok(NULL, "||");
+				printf("%s\n", token);
+				mode = (mode_t) atoi(token);
+				//result = mkdir(path2, 0777);
+				if (result == -1)
+					puts("Mkdir failed");
+
+				xmp_mkdir(path2, 0777);
+				break;
+		}
+		fflush(stdout);
+	}
+	//printf("E , ");
+	fflush(stdout);
+}
 
 int main(int argc, char *argv[]) {
 	umask(0);
@@ -415,11 +459,6 @@ int main(int argc, char *argv[]) {
 	int count = 3;
 	printf("%d %s %s\n",port, mountpoint[0], mountpoint[1]);
 	pthread_t thread_id;
-	if (fork() == 0)
-	{
-		fuse_main(count, mountpoint, &xmp_oper, NULL);
-		return 0;
-	}
 	puts("Starting ThreadWatch\n");
 
 	memset((void *)&server, 0, sizeof(server));
@@ -451,7 +490,7 @@ int main(int argc, char *argv[]) {
     	//Listen
     	listen(serverSock , 3);
 
-	/*
+
 	while( (clientSock = accept(serverSock, (struct sockaddr *)&client, (socklen_t*)&size)) )
     	{
        		// puts("Connection accepted");
@@ -464,7 +503,6 @@ int main(int argc, char *argv[]) {
         	}
        	// puts("Handler assigned");
     	}
-	*/
 	close(serverSock);
 }
 
