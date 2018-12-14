@@ -30,13 +30,13 @@ void main (int argc, char* argv[]) {
 	sprintf(location, "%s/orange.txt", argv[1]);
 	creat(location, 0777);
 	//printf("?\n");
+
 	//Open Test
-	printf("Open Test: opening orange.txt\n");
+	sprintf(location, "%s/1", argv[1]);
+	printf("Open Test: opening %s\n", location);
 	result = open(location, O_RDONLY);
-	if (result == -1)
-		printf("Failed opening %s:%s\n", location, strerror(errno));
-	else
-		printf("Opened %s successfully!\n", location);
+	printf("Opened %s successfully!\n", location);
+
 	//Flush Test
 
 	//Release Test

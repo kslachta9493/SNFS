@@ -394,19 +394,42 @@ static int xmp_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 	char tocreate[255];
 	char modeholder[10];
 	sprintf(modeholder, "%d",(int) mode);
+	printf("%s\n", modeholder);
 	sprintf(tosend, "13||%s||%s", path, modeholder);
 	send(sockfd, (char *) tosend, strlen(tosend), 0);
 	//sprintf(tocreate, "%s%s", mountpoint[2], path);
-	//int res = creat(tocreate, mode);
-	//if (res == -1)
-	//	printf("Failed %s\n", strerror(errno));
+	int res = creat(path, mode);
+	if (res == -1)
+		printf("Failed %s\n", strerror(errno));
 	return 0;
+}
+//14
+static int xmp_flush(const char *path, struct fuse_file_info *fi)
+{
+	printf("Flush %s received on client\n", path);
+	char tosend[255];
+	char tocreate[255];
+	char modeholder[10];
+	sprintf(tosend, "14||%s", fi->fh);
+	send(sockfd, (char *) tosend, strlen(tosend), 0);
+	return 0;
+}
+//15
+static int xmp_opendir(const char *path, struct fuse_file_info *fi)
+{
+	printf("Open dir %s received on client\n", path);
+	char tosend[255];
+	char tocreate[255];
+	char modeholder[10];
+	sprintf(tosend, "15||%s||%s", path);
+	send(sockfd, (char *) tosend, strlen(tosend), 0);
 }
 
 static struct fuse_operations xmp_oper = {
 	.getattr	= xmp_getattr,
 	.access		= xmp_access,
 	.readlink	= xmp_readlink,
+	.opendir	= xmp_opendir,
 	.readdir	= xmp_readdir,
 	.mknod		= xmp_mknod,
 	.mkdir		= xmp_mkdir,

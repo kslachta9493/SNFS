@@ -24,7 +24,7 @@ char* mountpoint[3];
 struct sockaddr_in server, client;
 int serverSock, clientSock, size;
 
-
+struct fuse_file_info *fi;
 
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
@@ -492,7 +492,30 @@ void mycreate() {
 }
 void myflush() {
 }
+struct xmp_dirp {
+	DIR *dp;
+	struct dirent *entry;
+	off_t offset;
+};
 void myopendir() {
+	char *token;
+	struct xmp_dirp *d = (struct xmp_dirp *) malloc(sizeof(struct xmp_dirp));
+	printf("opendir received\n");
+	int read_size;
+	char *path;
+	char path2[255];
+	mode_t mode;
+	int result;
+	token = strtok(NULL, "||");
+	if (token == NULL)
+		puts("NULL");
+	path = strdup(token);
+	sprintf(path2, "%s%s", mountpoint[2], path);
+	//sprintf(path2, "%s", path);
+	//result = mkdir(path2, 0777);
+	d->dp = opendir(path2);
+	d->offset = 0;
+	d->entry = NULL;
 }
 void myreleasedir() {
 }
